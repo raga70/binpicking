@@ -137,7 +137,7 @@ class InstallCmd(install, object):
 
 
 requirements = [
-   "autolab-core",
+    "autolab-core",
     "autolab-perception",
     "visualization",
     "numpy>=1.16.0,<=1.19.5",  # Last version supporting Python 3.6
@@ -155,7 +155,9 @@ requirements = [
     "chardet<4.0.0",  # Fix requests warning
     "requests>=2.25.0,<2.28.0",  # Compatible with Python 3.6
     "PyOpenGL>=3.1.0,<3.2.0",
-    "PyOpenGL-accelerate>=3.1.0,<3.2.0"
+    "PyOpenGL-accelerate>=3.1.0,<3.2.0",
+    "ruamel.yaml>=0.15.0,<0.16.0",  # Version with compatible load() method
+    "PyYAML>=5.1,<5.5"  # Compatible with Python 3.6 and autolab-core
 ]
 
 exec(
