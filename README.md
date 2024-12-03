@@ -18,3 +18,14 @@ the params  are:
     - camera_intr_filename: Path to a camera intrinsics file (.intr file generated with BerkeleyAutomation’s perception package).
 
  Ofcourse we will create our own policy runner soon    
+
+
+
+
+
+#### DEV info 
+
+searches for .npy deapth maps in AffixData/npy-pointCloud
+optional segmasks can be provided at AffixData/segmask    the segmask shoud have exatly the same fileName as the .npy but have a file extension of .png
+
+
