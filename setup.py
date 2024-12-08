@@ -157,7 +157,9 @@ requirements = [
     "PyOpenGL>=3.1.0,<3.2.0",
     "PyOpenGL-accelerate>=3.1.0,<3.2.0",
     "ruamel.yaml>=0.15.0,<0.16.0",  # Version with compatible load() method
-    "PyYAML>=5.1,<5.5"  # Compatible with Python 3.6 and autolab-core
+    "PyYAML>=5.1,<5.5",  # Compatible with Python 3.6 and autolab-core
+    "open3d==0.15.2",
+    "scikit-learn==0.24.2"
 ]
 
 exec(
