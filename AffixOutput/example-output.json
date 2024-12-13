@@ -1,0 +1,33 @@
+{
+  "bestGripperToUse": "suction",
+  "suction": {
+    "position": {
+      "x": 0.156,
+      "y": -0.083,
+      "z": 0.432
+    },
+    "orientation": {
+      "x": 0.707,
+      "y": 0.0,
+      "z": 0.707,
+      "w": 0.0
+    },
+    "certainty": 0.892
+  },
+  "pj": {
+    "position": {
+      "x": 0.143,
+      "y": -0.092,
+      "z": 0.428
+    },
+    "orientation": {
+      "x": 0.653,
+      "y": -0.271,
+      "z": 0.653,
+      "w": 0.271
+    },
+    "certainty": 0.756
+  }
+}
+
+
