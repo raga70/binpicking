@@ -1,4 +1,4 @@
-Bin Picking System - Generate Pick(Grasp) Position   (updated DEX-NET)
+# Bin Picking System - Generate Pick(Grasp) Position   (updated DEX-NET)
 
 This system leverages an updated and modified version of **Dex-Net** to perform object segmentation and generate grasp positions from `.ply` files. It supports both **parallel-jaw grippers** and **vacuum grippers**, providing recommendations on which gripper is better suited for each object. Additionally, the system can optionally label the objects.
 
