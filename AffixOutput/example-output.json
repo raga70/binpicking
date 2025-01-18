@@ -1,4 +1,5 @@
 {
+  "label" : "Carboard Box",
   "bestGripperToUse": "suction",
   "suction": {
     "position": {

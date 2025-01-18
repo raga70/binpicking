@@ -3,13 +3,156 @@ import numpy as np
 import open3d as o3d
 from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+from scipy.ndimage import binary_dilation
+from skimage.transform import resize
 
 # Paths
 input_folder = "AffixData/ply-inputs"
 output_folder = "AffixData/npy-pointCloud"
+mask_folder = "AffixData/npy-pointCloud"
 os.makedirs(output_folder, exist_ok=True)
+IM_HEIGHT = 480
+IM_WIDTH = 640
+
+def point_cloud_to_depth_image(points, height=IM_HEIGHT, width=IM_WIDTH):
+    """
+    Convert point cloud to depth image with proper depth preservation
+    
+    Args:
+        points: Nx3 array of points
+        height: desired height of depth image
+        width: desired width of depth image
+    
+    Returns:
+        depth_image: height x width depth image
+    """
+    if len(points) == 0:
+        return np.zeros((height, width))
+
+    # Create empty depth image
+    depth_image = np.zeros((height, width))
+
+    # Get depth values (Z coordinate)
+    depths = points[:, 2]
+
+    # Normalize X and Y to image coordinates while preserving aspect ratio
+    x_coords = points[:, 0]
+    y_coords = points[:, 1]
+
+    # Calculate aspect ratio of point cloud
+    x_range = np.max(x_coords) - np.min(x_coords)
+    y_range = np.max(y_coords) - np.min(y_coords)
+    point_cloud_aspect = x_range / y_range if y_range != 0 else 1.0
+
+    # Calculate image aspect ratio
+    image_aspect = width / height
+
+    # Adjust scaling to preserve aspect ratio
+    if point_cloud_aspect > image_aspect:
+        # Point cloud is wider than image
+        scale = width / x_range
+        x_offset = 0
+        y_offset = (height - y_range * scale) / 2
+    else:
+        # Point cloud is taller than image
+        scale = height / y_range
+        x_offset = (width - x_range * scale) / 2
+        y_offset = 0
+
+    # Scale coordinates to image space
+    x_pixels = ((x_coords - np.min(x_coords)) * scale + x_offset).astype(int)
+    y_pixels = ((y_coords - np.min(y_coords)) * scale + y_offset).astype(int)
+
+    # Ensure coordinates are within image bounds
+    valid_points = (x_pixels >= 0) & (x_pixels < width) & (y_pixels >= 0) & (y_pixels < height)
+    x_pixels = x_pixels[valid_points]
+    y_pixels = y_pixels[valid_points]
+    depths = depths[valid_points]
+
+   # Normalize depths to [0, 1] range for better visualization
+    if len(depths) > 0:
+        depth_min = np.min(depths)
+        depth_max = np.max(depths)
+        if depth_max > depth_min:
+            depths = (depths - depth_min) / (depth_max - depth_min)
+
+        # Fill in depth values
+        for x, y, d in zip(x_pixels, y_pixels, depths):
+            if depth_image[y, x] == 0 or d < depth_image[y, x]:
+                depth_image[y, x] = d
+
+    # Fill small holes
+    from scipy.ndimage import median_filter
+    depth_image = median_filter(depth_image, size=3)
+
+    return depth_image
+
+def visualize_depth_and_mask(depth_image, mask, points=None):
+    """
+    Visualize depth image, mask, and optionally point cloud
+    """
+    n_plots = 3 if points is not None else 2
+    plt.figure(figsize=(5*n_plots, 5))
+
+    if points is not None:
+        plt.subplot(1, n_plots, 1)
+        plt.title("Point Cloud")
+        pcd = o3d.geometry.PointCloud()
+        pcd.points = o3d.utility.Vector3dVector(points)
+        o3d.visualization.draw_geometries([pcd])
+
+    plt.subplot(1, n_plots, n_plots-1)
+    plt.title("Depth Image")
+    plt.imshow(depth_image, cmap='viridis')
+    plt.colorbar(label='Depth')
+
+    plt.subplot(1, n_plots, n_plots)
+    plt.title("Segmentation Mask")
+    plt.imshow(mask, cmap='gray')
+
+    plt.tight_layout()
+    plt.show()
 
 
+def create_2d_mask(points, height=IM_HEIGHT, width=IM_WIDTH):
+    """
+    Create a 2D binary mask from 3D points
+    
+    Args:
+        points: Nx3 array of points
+        height: desired height of mask
+        width: desired width of mask
+    
+    Returns:
+        2D binary mask
+    """
+    # Project points to 2D
+    x_coords = points[:, 0]
+    y_coords = points[:, 1]
+
+    # Create mask
+    mask = np.zeros((height, width), dtype=np.uint8)
+
+    # Normalize to image coordinates
+    x_min, x_max = np.min(x_coords), np.max(x_coords)
+    y_min, y_max = np.min(y_coords), np.max(y_coords)
+
+    x_range = max(x_max - x_min, 1e-6)
+    y_range = max(y_max - y_min, 1e-6)
+
+    x_pixels = ((x_coords - x_min) / x_range * (width - 1)).astype(int)
+    y_pixels = ((y_coords - y_min) / y_range * (height - 1)).astype(int)
+
+    # Fill mask
+    for x_pix, y_pix in zip(x_pixels, y_pixels):
+        if 0 <= x_pix < width and 0 <= y_pix < height:
+            mask[y_pix, x_pix] = 255
+
+    # Dilate mask to fill small gaps
+    mask = binary_dilation(mask, iterations=2).astype(np.uint8) * 255
+
+    return mask
 def get_latest_file(folder):
     """Get the latest file by DateOfCreation from a folder."""
     files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith(".ply")]
@@ -17,11 +160,23 @@ def get_latest_file(folder):
     return latest_file
 
 
-def visualize_segment(points):
-    """Visualize a point cloud segment."""
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(points)
-    o3d.visualization.draw_geometries([pcd])
+def visualize_segment(points, mask=None):
+    """Visualize a point cloud segment and its 2D mask if provided."""
+    if mask is not None:
+        plt.figure(figsize=(10, 5))
+        plt.subplot(121)
+
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(points)
+    # o3d.visualization.draw_geometries([pcd])
+
+    # if mask is not None:
+    #     plt.subplot(122)
+    #     plt.imshow(mask, cmap='gray')
+    #     plt.title('2D Segmentation Mask')
+    #     plt.axis('off')
+    #     plt.show()
+
 
 
 def clean_point_cloud(points):
@@ -126,13 +281,36 @@ def clean_point_cloud(points):
     return cleaned_points
 
 
-def main(eps, min_samples, calibrate, visualizeSegmentedObjs, min_certainty):
+
+def temp(pcd):
+    
+    base_filename = "fullCloud"
+
+    points = np.asarray(pcd.points)
+
+    # Clean the point cloud
+    points = clean_point_cloud(points)
+    depth_image = point_cloud_to_depth_image(points)
+    print(f"Depth image stats - Min: {np.min(depth_image):.3f}, Max: {np.max(depth_image):.3f}, Mean: {np.mean(depth_image):.3f}")
+
+    # Save depth image as NPY
+    npy_path = os.path.join(output_folder, f"{base_filename}_object_0.npy")
+    np.save(npy_path, depth_image)
+
+    # Create and save mask
+    mask = create_2d_mask(points)
+    mask_path = os.path.join(mask_folder, f"{base_filename}_object_0_mask.png")
+    plt.imsave(mask_path, mask, cmap='gray')
+
+def main(eps=0.094, min_samples=150, calibrate=False, visualizeSegmentedObjs=False, min_certainty=0.48):
     # Get the latest file
     latest_file = get_latest_file(input_folder)
     print(f"Processing file: {latest_file}")
 
     # Load point cloud
     pcd = o3d.io.read_point_cloud(latest_file)
+    
+    temp(pcd)
 
     # Segment the point cloud
     if calibrate:
@@ -140,24 +318,43 @@ def main(eps, min_samples, calibrate, visualizeSegmentedObjs, min_certainty):
     else:
         segmented_objects, certainties = segment_point_cloud(pcd, eps, min_samples)
 
-    # remove objects with certainty below min_certainty
-    segmented_objects = [obj_points for obj_points, certainty in zip(segmented_objects, certainties) if
-                         certainty >= min_certainty]
+    # Filter objects based on certainty
+    filtered_objects = [(obj, cert) for obj, cert in zip(segmented_objects, certainties)
+                        if cert >= min_certainty]
 
-    # Save each segment as a .npy file and output certainty
+    if not filtered_objects:
+        print("No objects found meeting the certainty threshold")
+        return
+
+    segmented_objects, certainties = zip(*filtered_objects)
+
+    # Save each segment and its mask
     for i, (obj_points, certainty) in enumerate(zip(segmented_objects, certainties)):
-        # Visualize the segment
+        # Generate base filename
+        base_filename = os.path.splitext(os.path.basename(latest_file))[0]
 
-        if visualizeSegmentedObjs:
-            print(f"Visualizing Object {i} with Certainty: {certainty:.2f}")
-            visualize_segment(obj_points)
+        # Convert point cloud to depth image
+        depth_image = point_cloud_to_depth_image(obj_points)
+        print(f"Depth image stats - Min: {np.min(depth_image):.3f}, Max: {np.max(depth_image):.3f}, Mean: {np.mean(depth_image):.3f}")
 
-        # Save the segment
-        output_path = os.path.join(output_folder,
-                                   f"{os.path.splitext(os.path.basename(latest_file))[0]}_object_{i}.npy")
-        np.save(output_path, obj_points)
-        print(f"File: {latest_file}, Object {i}, Certainty: {certainty:.2f}")
+        # Save depth image as NPY
+        npy_path = os.path.join(output_folder, f"{base_filename}_object_{i}.npy")
+        np.save(npy_path, depth_image)
 
+        # Create and save mask
+        mask = create_2d_mask(obj_points)
+        mask_path = os.path.join(mask_folder, f"{base_filename}_object_{i}_mask.png")
+        plt.imsave(mask_path, mask, cmap='gray')
+
+        print(f"Processed object {i}:")
+        print(f"  Depth image saved to: {npy_path}")
+        print(f"  Depth image shape: {depth_image.shape}")
+        print(f"  Mask saved to: {mask_path}")
+        print(f"  Mask shape: {mask.shape}")
+        print(f"  Certainty: {certainty:.2f}")
+
+        # if visualizeSegmentedObjs:
+        #     visualize_depth_and_mask(depth_image, mask, obj_points)
 
 """
 TRAINING & RESEARCH
@@ -282,7 +479,7 @@ if __name__ == "__main__":
     parser.add_argument("--eps", type=float, default=0.094, help="Epsilon value (default: 0.1)")
     parser.add_argument("--min_samples", type=int, default=150, help="Minimum samples (default: 3)")
     parser.add_argument("--calibrate", action="store_true", help="Calibrate flag (default: False)")
-    parser.add_argument("--visualizeSegmentedObjs", default=True, help="Calibrate flag (default: True)")
+    parser.add_argument("--visualizeSegmentedObjs", default=True, help="visualizeSegmentedObjs flag for DEBUG when Calibrating (default: True)")
     parser.add_argument("--min_certainty", type=int, default=0.48, help="Minimum certainty (default: 0.48)")
 
     # Parse arguments

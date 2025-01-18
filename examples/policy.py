@@ -1,36 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
-Copyright ©2017. The Regents of the University of California (Regents).
-All Rights Reserved. Permission to use, copy, modify, and distribute this
-software and its documentation for educational, research, and not-for-profit
-purposes, without fee and without a signed licensing agreement, is hereby
-granted, provided that the above copyright notice, this paragraph and the
-following two paragraphs appear in all copies, modifications, and
-distributions. Contact The Office of Technology Licensing, UC Berkeley, 2150
-Shattuck Avenue, Suite 510, Berkeley, CA 94720-1620, (510) 643-7201,
-otl@berkeley.edu,
-http://ipira.berkeley.edu/industry-info for commercial licensing opportunities.
 
-IN NO EVENT SHALL REGENTS BE LIABLE TO ANY PARTY FOR DIRECT, INDIRECT, SPECIAL,
-INCIDENTAL, OR CONSEQUENTIAL DAMAGES, INCLUDING LOST PROFITS, ARISING OUT OF
-THE USE OF THIS SOFTWARE AND ITS DOCUMENTATION, EVEN IF REGENTS HAS BEEN
-ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-REGENTS SPECIFICALLY DISCLAIMS ANY WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
-THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE. THE SOFTWARE AND ACCOMPANYING DOCUMENTATION, IF ANY, PROVIDED
-HEREUNDER IS PROVIDED "AS IS". REGENTS HAS NO OBLIGATION TO PROVIDE
-MAINTENANCE, SUPPORT, UPDATES, ENHANCEMENTS, OR MODIFICATIONS.
-
-Displays robust grasps planned using a GQ-CNN grapsing policy on a set of saved
-RGB-D images. The default configuration for the standard GQ-CNN policy is
-`cfg/examples/cfg/examples/gqcnn_pj.yaml`. The default configuration for the
-Fully-Convolutional GQ-CNN policy is `cfg/examples/fc_gqcnn_pj.yaml`.
-
-Author
-------
-Jeff Mahler & Vishal Satish
-"""
 import argparse
 import json
 import os
@@ -51,8 +20,7 @@ from gqcnn.utils import GripperMode
 # Set up logger.
 logger = Logger.get_logger("examples/policy.py")
 
-if __name__ == "__main__":
-    # Parse args.
+if __name__ == "__main__":   
     parser = argparse.ArgumentParser(
         description="Run a grasping policy on an example image")
     parser.add_argument("model_name",
@@ -264,4 +232,4 @@ if __name__ == "__main__":
         vis.grasp(action.grasp, scale=2.5, show_center=False, show_axis=True)
         vis.title("Planned grasp at depth {0:.3f}m with Q={1:.3f}".format(
             action.grasp.depth, action.q_value))
-        vis.show()
+        vis.show() 
